@@ -2,123 +2,96 @@ package main
 
 import (
 	"fmt"
-	"io/ioutil"
-	"math"
-	"strconv"
-	"strings"
+	"math/rand"
+	"time"
 )
 
-type node struct {
-	name string
-	to   map[*node]int
-}
+type board [][]rune
 
-func Create(name string) *node {
-	return &node{name, map[*node]int{}}
-}
-
-func (n *node) Connect(n1 *node, distance int) *node {
-	(*n).to[n1] = distance
-	(*n1).to[n] = distance
-	return n1
-}
-
-func (n *node) ToChildren(prevStr string, name string, dist, depth int) (int, string) {
-	if depth > 0 {
-		prevStr += " -> " + (*n).name
-		if (*n).name == name {
-			return dist, prevStr
+func Beat(b board, x, y int) board {
+	tt := NewBoard(len(b))
+	for i := 0; i < len(b); i++ {
+		for j := 0; j < len(b[i]); j++ {
+			tt[i][j] = b[i][j]
 		}
-		mind := math.MaxInt32
-		ps := ""
-		for nm, v := range (*n).to {
-			r, s := (*nm).ToChildren(prevStr, name, dist+v, depth-1)
-			//fmt.Println(strings.Repeat("\t", 15-depth), (*n).name, v, (*nm).name)
-			if r < mind {
-				mind = r
-				ps = s
-			}
-		}
-		return mind, ps
-	} else {
-		return math.MaxInt32, ""
 	}
-}
-
-func (n *node) To(name string, depth int) {
-	r, s := (*n).ToChildren("", name, 0, depth)
-	fmt.Println(s)
-	fmt.Println("Відстань:", r)
-}
-
-func (n *node) Find(name string) *node {
-	exc := []*node{}
-	exc = append(exc, n)
-	return (*n).FindInChildren(name, &exc)
-}
-
-func (n *node) FindInChildren(name string, exceptionArr *[]*node) *node {
-	for nn := range (*n).to {
-		if (*nn).name == name {
-			return nn
+	tt[y][x] = 'Q'
+	for i := 1; i < len(b); i++ {
+		if y-i >= 0 && x-i > 0 {
+			tt[y-i][x-i] = '.'
 		}
-		b := false
-		for _, v := range *exceptionArr {
-			if nn == v {
-				b = true
-			}
+		if y-i >= 0 && x+i < len(b) {
+			tt[y-i][x+i] = '.'
 		}
-		if !b {
-			(*exceptionArr) = append((*exceptionArr), nn)
-			res := (*nn).FindInChildren(name, exceptionArr)
-			if res != nil {
-				return res
+		if y+i < len(b) && x-i >= 0 {
+			tt[y+i][x-i] = '.'
+		}
+		if y+i < len(b) && x+i < len(b) {
+			tt[y+i][x+i] = '.'
+		}
+		if y-i >= 0 {
+			tt[y-i][x] = '.'
+		}
+		if x-i >= 0 {
+			tt[y][x-i] = '.'
+		}
+		if y+i < len(b) {
+			tt[y+i][x] = '.'
+		}
+		if x+i < len(b) {
+			tt[y][x+i] = '.'
+		}
+	}
+	return tt
+}
+
+func placeQueen(b board, row int) (board, int) {
+
+	if row >= len(b) {
+		return b, row
+	}
+	// for i := 0; i < len(b); i++ {
+	// 	for j := 0; j < len(b[i]); j++ {
+	// 		fmt.Print(string(b[i][j]), " ")
+	// 	}
+	// 	fmt.Println()
+	// }
+	// fmt.Println()
+	var bst board
+	maxSc := -1
+	for i := 0; i < len(b); i++ {
+		if b[row][i] == 0 {
+			tst, num := placeQueen(Beat(b, i, row), row+1)
+			if num > maxSc {
+				bst = tst
+				maxSc = num
 			}
 		}
 	}
-	return nil
+	return bst, maxSc
 }
 
-func FromTxt() *node {
-	str, err := ioutil.ReadFile("data.txt")
-	if err != nil {
-		panic(err)
+func NewBoard(size int) board {
+	b := make([][]rune, size)
+	for i := 0; i < size; i++ {
+		b[i] = make([]rune, size)
 	}
-	dt := strings.Split(string(str), "\n")
-	var start *node
-	if len(dt) > 0 {
-		dt[0] = strings.Trim(dt[0], "\r")
-		dtt := strings.Split(dt[0], " ")
-		start = Create(dtt[0])
-		l, _ := strconv.Atoi(dtt[1])
-		start.Connect(Create(dtt[2]), l)
-	}
-	for _, v := range dt {
-		v = strings.Trim(v, "\r")
-		dtt := strings.Split(v, " ")
-		c1 := start.Find(dtt[0])
-		if c1 == nil {
-			c1 = Create(dtt[0])
-		}
-		c2 := start.Find(dtt[2])
-		if c2 == nil {
-			c2 = Create(dtt[2])
-		}
-		l, _ := strconv.Atoi(dtt[1])
-		c1.Connect(c2, l)
-		fmt.Println((*c1).name, l, (*c2).name)
-	}
-	return start
+	return board(b)
 }
 
-func BuildMap() *node {
-	return FromTxt()
+func Solve(size int) {
+	b := NewBoard(size)
+	res, val := placeQueen(b, 0)
+	fmt.Println("Queens: ", val)
+	for i := 0; i < len(res); i++ {
+		for j := 0; j < len(res[i]); j++ {
+			fmt.Print(string(res[i][j]), " ")
+		}
+		fmt.Println()
+	}
 }
 
 func main() {
-	start := BuildMap()
-	fmt.Println(start.Find("Луганcьк\r"))
-	start.Find("Луганcьк").To("Львів", 15)
-	s := ""
-	fmt.Scanln(&s)
+	rand.Seed(time.Now().UnixNano())
+	Solve(12)
 }
